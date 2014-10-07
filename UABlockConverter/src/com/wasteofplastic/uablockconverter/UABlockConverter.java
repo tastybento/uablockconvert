@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -161,6 +160,11 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    sender.sendMessage(ChatColor.RED + "There is no islands folder in uSkyBlock!");
 	    return true;
 	}
+	// Make an islands folder in aSkyblock too
+	File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
+	if (!asbIslandDir.exists()) {
+	    asbIslandDir.mkdir();
+	}
 	int total = islandDir.listFiles().length-2;
 	sender.sendMessage("There are " + total + " islands to convert");
 	int count = 1;
@@ -172,9 +176,13 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		String islandName = island.getName().substring(0, island.getName().length() -4);
 		if (!islandName.isEmpty()) {
 		    sender.sendMessage("Loading island #" + (count++) + " of " + total + " at location " + islandName);
+		    // Copy the name to the aSkyblock folder
+		    File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
 		    // Find out who the owners are of this island
 		    YamlConfiguration config = new YamlConfiguration();
 		    try {
+			// Save file
+			newIsland.createNewFile();
 			config.load(island);
 			// Get island info
 			// Location
@@ -320,12 +328,31 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    playerDir.mkdir();
 	}
 	// Now save all the players
+	List<String> noUUIDs = new ArrayList<String>();
 	for (String name : players.keySet()) {
 	    if (players.get(name).getUUID() != null) {
 		players.get(name).save(playerDir);
 	    } else {
-		getLogger().warning(name + " has no UUID. Cannot save this player!");
+		// Try and obtain local UUID if offline mode is true
+		if (!getServer().getOnlineMode()) {
+		    @SuppressWarnings("deprecation")
+		    UUID offlineUUID = getServer().getOfflinePlayer(name).getUniqueId();
+		    if (offlineUUID != null) {
+			getLogger().warning("Set *offline* UUID for " + name);
+			players.get(name).setUUID(offlineUUID);
+			players.get(name).save(playerDir);
+		    }
+		} else {
+		    getLogger().warning(name + " has no UUID. Cannot save this player!");
+		    noUUIDs.add(name);
+		}
 	    }  
+	}
+	if (!noUUIDs.isEmpty()) {
+	    getLogger().warning("The following player names have no UUID (according to Mojang or offline server) so had to be skipped:");
+	    for (String n : noUUIDs) {
+		getLogger().warning(n);
+	    }
 	}
 	getLogger().info("***** All Done! *****");
 	getLogger().info("Stop server and check that config.yml in askyblock folder is okay");
