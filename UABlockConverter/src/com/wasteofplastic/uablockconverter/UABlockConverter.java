@@ -310,10 +310,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			PlayerInfo playerInfo = (PlayerInfo)SLAPI.load(player.getAbsolutePath());
 			// Transfer the player info
 			Players newPlayer = new Players(this, playerInfo.getPlayerName());
-			if (!playerNames.contains(player.getName().toLowerCase())) {
-			    //getLogger().info("Adding player '" + player.getName() + "'");
-			    playerNames.add(player.getName().toLowerCase());
-			}
+			playerNames.add(player.getName());
 			newPlayer.setHasIsland(playerInfo.getHasIsland());
 			if (playerInfo.getHL() != null) {
 			    //getLogger().info("DEBUG: Location is " + playerInfo.getHL());
@@ -340,7 +337,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			}
 			if (playerInfo.getPartyLeader() != null)
 			    newPlayer.setTeamLeaderName(playerInfo.getPartyLeader());
-			players.put(player.getName().toLowerCase(), newPlayer);
+			players.put(player.getName(), newPlayer);
 			//getLogger().info("Added player " + player.getName());
 		    }
 		    catch (StreamCorruptedException e)
@@ -353,8 +350,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		}
 	    }
 	}
-	
-	
+
+
 	// Now get the UUID's
 	sender.sendMessage(ChatColor.GREEN + "Now contacting Mojang to obtain UUID's for players. This could take a while, see console and please wait...");
 	// Check for any blank or null names
@@ -401,7 +398,17 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	// Now complete the player objects
 	for (String name : response.keySet()) {
 	    getLogger().info("Set UUID for " + name);
-	    players.get(name).setUUID(response.get(name));
+	    UUID uuid = response.get(name);
+	    // DEBUG - step through name character by character
+	    /*
+	    for (int c = 0; c < name.length(); c ++) {
+		getLogger().info("Char " + name.charAt(c) + " value " + (int)name.charAt(c));
+	    }*/
+	    
+	    if (players.get(name.trim()) != null) {
+		players.get(name.trim()).setUUID(uuid);
+	    }
+	    
 	}
 	File playerDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "players");
 	if (!playerDir.exists()) {
