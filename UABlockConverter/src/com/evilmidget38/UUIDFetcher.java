@@ -1,19 +1,22 @@
 package com.evilmidget38;
  
-import com.google.common.collect.ImmutableList;
-
-import org.bukkit.Bukkit;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
+import com.google.common.collect.ImmutableList;
+import com.wasteofplastic.uablockconverter.UABlockConverter;
  
 public class UUIDFetcher implements Callable<Map<String, UUID>> {
     private static final int PROFILES_PER_REQUEST = 100;
@@ -21,28 +24,32 @@ public class UUIDFetcher implements Callable<Map<String, UUID>> {
     private final JSONParser jsonParser = new JSONParser();
     private final List<String> names;
     private final boolean rateLimiting;
+    private UABlockConverter plugin;
  
-    public UUIDFetcher(List<String> names, boolean rateLimiting) {
+    public UUIDFetcher(UABlockConverter plugin, List<String> names, boolean rateLimiting) {
+	this.plugin = plugin;
         this.names = ImmutableList.copyOf(names);
         this.rateLimiting = rateLimiting;
     }
  
-    public UUIDFetcher(List<String> names) {
-        this(names, true);
+    public UUIDFetcher(UABlockConverter plugin, List<String> names) {
+        this(plugin, names, true);
     }
  
     public Map<String, UUID> call() throws Exception {
         Map<String, UUID> uuidMap = new HashMap<String, UUID>();
-        int requests = (int) Math.ceil(names.size() / PROFILES_PER_REQUEST);
+        int requests = (int) Math.ceil((double)names.size() / PROFILES_PER_REQUEST);
         for (int i = 0; i < requests; i++) {
             HttpURLConnection connection = createConnection();
             //String body = JSONArray.toJSONString(names.subList(i * 100, Math.min((i + 1) * 100, names.size())));
             String body = JSONArray.toJSONString(names.subList((i * PROFILES_PER_REQUEST), Math.min((i + 1) * PROFILES_PER_REQUEST, names.size())));
-            Bukkit.getLogger().info("************");
+            /*
+            plugin.getLogger().info("************");
             for (String debugName : names.subList((i * PROFILES_PER_REQUEST), Math.min((i + 1) * PROFILES_PER_REQUEST, names.size()))) {
-        	Bukkit.getLogger().info("Checking name:" + debugName);
+        	plugin.getLogger().info("Checking name:" + debugName);
             }
-            Bukkit.getLogger().info("************");
+            plugin.getLogger().info("************");
+            */
             writeBody(connection, body);
             JSONArray array = (JSONArray) jsonParser.parse(new InputStreamReader(connection.getInputStream()));
             for (Object profile : array) {
@@ -97,8 +104,9 @@ public class UUIDFetcher implements Callable<Map<String, UUID>> {
         long leastSignificant = byteBuffer.getLong();
         return new UUID(mostSignificant, leastSignificant);
     }
- 
+ /*
     public static UUID getUUIDOf(String name) throws Exception {
         return new UUIDFetcher(Arrays.asList(name)).call().get(name);
     }
+    */
 }

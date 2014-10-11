@@ -3,6 +3,7 @@ package com.wasteofplastic.uablockconverter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.StreamCorruptedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import us.talabrek.ultimateskyblock.PlayerInfo;
+
 import com.evilmidget38.UUIDFetcher;
 
 public class UABlockConverter extends JavaPlugin implements Listener {
@@ -32,6 +35,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
     CaseInsensitiveMap players = new CaseInsensitiveMap();
     boolean UUIDflag;
     BukkitTask check;
+    // True if this is <2.0 of uSkyblock
+    boolean oldVersion;
 
     Map<String, UUID> response = null;
 
@@ -50,10 +55,19 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	plugins = getDataFolder().getParentFile();
 	uSkyBlockConfig = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "config.yml");
 	if (!uSkyBlockConfig.exists()) {
-	    getLogger().severe("There appears to be no uSkyBlock folder of config in the plugins folder!");
+	    getLogger().severe("There appears to be no uSkyBlock folder or config in the plugins folder!");
 	    getServer().getPluginManager().disablePlugin(this);
 	} else {
 	    getLogger().info("Found uSkyBlock config.");
+	    // Now look for the version based on the folder structure (which is most important)
+	    File islands = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "islands");
+	    if (!islands.exists()) {
+		getLogger().info("Could not find an islands folder, so this looks like the old version of uSkyblock");
+		oldVersion = true;
+	    } else {
+		getLogger().info("Found islands folder, so this looks like the new version of uSkyblock");
+		oldVersion = false;
+	    }
 	}
 	aSkyBlockConfig = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "config.yml");
 	if (!aSkyBlockConfig.exists()) {
@@ -74,7 +88,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	// Set up configs first
 	aSkyBlockConf = YamlConfiguration.loadConfiguration(aSkyBlockConfig);
 	uSkyBlockConf = YamlConfiguration.loadConfiguration(uSkyBlockConfig);
-	/*  USkyblock config:
+	/*  USkyblock config (NEW):
 	 * options:
   general:
     maxPartySize: 4
@@ -154,127 +168,193 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	}
 	sender.sendMessage(ChatColor.GREEN + "Completed config.yml transfer");
 
-	// Go to the islands folder and see how many there are
-	File islandDir = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "islands");
-	if (!islandDir.exists()) {
-	    sender.sendMessage(ChatColor.RED + "There is no islands folder in uSkyBlock!");
-	    return true;
-	}
-	// Make an islands folder in aSkyblock too
-	File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
-	if (!asbIslandDir.exists()) {
-	    asbIslandDir.mkdir();
-	}
-	int total = islandDir.listFiles().length-2;
-	sender.sendMessage("There are " + total + " islands to convert");
-	int count = 1;
-	// General idea - load all the data, do the name lookups then create the new files
+	// If new version
+	if (!oldVersion) {
+	    // Go to the islands folder and see how many there are
+	    File islandDir = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "islands");
+	    if (!islandDir.exists()) {
+		sender.sendMessage(ChatColor.RED + "There is no islands folder in uSkyBlock!");
+		return true;
+	    }
+	    // Make an islands folder in aSkyblock too
+	    File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
+	    if (!asbIslandDir.exists()) {
+		asbIslandDir.mkdir();
+	    }
+	    int total = islandDir.listFiles().length-2;
+	    sender.sendMessage("There are " + total + " islands to convert");
+	    int count = 1;
+	    // General idea - load all the data, do the name lookups then create the new files
 
-	for (File island : islandDir.listFiles()) {
-	    // Ignore the null filename
-	    if (!island.getName().equalsIgnoreCase("null.yml") && island.getName().endsWith(".yml") && !island.getName().equalsIgnoreCase(".yml")) {
-		String islandName = island.getName().substring(0, island.getName().length() -4);
-		if (!islandName.isEmpty()) {
-		    sender.sendMessage("Loading island #" + (count++) + " of " + total + " at location " + islandName);
-		    // Copy the name to the aSkyblock folder
-		    File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
-		    // Find out who the owners are of this island
-		    YamlConfiguration config = new YamlConfiguration();
-		    try {
-			// Save file
-			newIsland.createNewFile();
-			config.load(island);
-			// Get island info
-			// Location
-			String[] split = islandName.split(",");
-			String islandLocation = world + ":" + split[0] + ":" + height + ":" + split[1];
-			// Get island level
-			int level = config.getInt("general.level",0);
-			// Get the island leader
-			String leaderName = config.getString("party.leader","");
-			if (!leaderName.isEmpty()) {
-			    getLogger().info("Leader is :"+leaderName);
-			    // Create this player
-			    Players leader = new Players(this,leaderName);
-			    leader.setHasIsland(true);
-			    leader.setIslandLocation(islandLocation);
+	    for (File island : islandDir.listFiles()) {
+		// Ignore the null filename
+		if (!island.getName().equalsIgnoreCase("null.yml") && island.getName().endsWith(".yml") && !island.getName().equalsIgnoreCase(".yml")) {
+		    String islandName = island.getName().substring(0, island.getName().length() -4);
+		    if (!islandName.isEmpty()) {
+			sender.sendMessage("Loading island #" + (count++) + " of " + total + " at location " + islandName);
+			// Copy the name to the aSkyblock folder
+			File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
+			// Find out who the owners are of this island
+			YamlConfiguration config = new YamlConfiguration();
+			try {
+			    // Save file
+			    newIsland.createNewFile();
+			    config.load(island);
+			    // Get island info
+			    // Location
+			    String[] split = islandName.split(",");
+			    String islandLocation = world + ":" + split[0] + ":" + height + ":" + split[1];
+			    // Get island level
+			    int level = config.getInt("general.level",0);
+			    // Get the island leader
+			    String leaderName = config.getString("party.leader","");
+			    if (!leaderName.isEmpty()) {
+				getLogger().info("Leader is :"+leaderName);
+				// Create this player
+				Players leader = new Players(this,leaderName);
+				leader.setHasIsland(true);
+				leader.setIslandLocation(islandLocation);
 
-			    // Problem - will be recalculated
-			    leader.setIslandLevel(level);
-			    playerNames.add(leaderName);
-			    players.put(leaderName,leader);
-			    ConfigurationSection party = config.getConfigurationSection("party.members");
-			    // Step through the names on this island
-			    for (String name : party.getKeys(false)) {
-				//getLogger().info("DEBUG: name in file = " + name);
-				if (!name.equals(leaderName) && !name.isEmpty()) {
-				    // Team member
-				    Players teamMember = new Players(this,name);
-				    leader.addTeamMember(name);
-				    leader.addTeamMember(leaderName);
-				    leader.setTeamLeaderName(leaderName);
-				    leader.setTeamIslandLocation(islandLocation);
-				    leader.setInTeam(true);
-				    teamMember.setTeamLeaderName(leaderName);
-				    teamMember.setTeamIslandLocation(islandLocation);
-				    teamMember.setInTeam(true);
-				    players.put(name,teamMember);
-				    playerNames.add(name);
-				} 
+				// Problem - will be recalculated
+				leader.setIslandLevel(level);
+				playerNames.add(leaderName);
+				players.put(leaderName,leader);
+				ConfigurationSection party = config.getConfigurationSection("party.members");
+				// Step through the names on this island
+				for (String name : party.getKeys(false)) {
+				    //getLogger().info("DEBUG: name in file = " + name);
+				    if (!name.equals(leaderName) && !name.isEmpty()) {
+					// Team member
+					Players teamMember = new Players(this,name);
+					leader.addTeamMember(name);
+					leader.addTeamMember(leaderName);
+					leader.setTeamLeaderName(leaderName);
+					leader.setTeamIslandLocation(islandLocation);
+					leader.setInTeam(true);
+					teamMember.setTeamLeaderName(leaderName);
+					teamMember.setTeamIslandLocation(islandLocation);
+					teamMember.setInTeam(true);
+					players.put(name,teamMember);
+					playerNames.add(name);
+				    } 
+				}
+			    }
+			} catch (FileNotFoundException e) {
+			    sender.sendMessage(islandName + " suddenly disappeared! Skipping...");
+			    // TODO Auto-generated catch block
+			    e.printStackTrace();
+			} catch (IOException e) {
+			    sender.sendMessage(islandName + " problem! Skipping...");
+			    // TODO Auto-generated catch block
+			    e.printStackTrace();
+			} catch (InvalidConfigurationException e) {
+			    sender.sendMessage(islandName + " YAML is corrupted! Skipping...");
+			    // TODO Auto-generated catch block
+			    e.printStackTrace();
+			} catch (Exception e) {
+			    sender.sendMessage(islandName + " problem! Skipping...");
+			    // TODO Auto-generated catch block
+			    e.printStackTrace();
+			}
+
+		    }
+		}
+	    }
+	    sender.sendMessage(ChatColor.GREEN + "Loaded islands. Now loading home locations of players...");
+	    // We now have a full list of all player's names and have build player objects and teams. 
+	    // Next we need to grab all the home locations
+	    // Go to the islands folder and see how many there are
+	    File playerDir = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "players");
+	    if (!playerDir.exists()) {
+		sender.sendMessage(ChatColor.RED + "There is no players folder in uSkyBlock!");
+		return true;
+	    }
+	    int totalPlayers = playerDir.listFiles().length-1;
+	    sender.sendMessage(ChatColor.DARK_BLUE + "There are " + totalPlayers + " player files to convert");
+	    int playerCount = 1;
+	    for (File playerFile : playerDir.listFiles()) {
+		// Only grab yml files
+		String playerFileName = playerFile.getName();
+		if (playerFileName.endsWith(".yml")) {
+		    String playerName = playerFileName.substring(0, playerFileName.length()-4);
+		    sender.sendMessage("Loading home for " + playerName + ", player " + (playerCount++) + " of " + totalPlayers);
+		    if (playerNames.contains(playerName)) {
+			Players thisPlayer = players.get(playerName);
+			YamlConfiguration p = new YamlConfiguration();
+			try {
+			    p.load(playerFile);
+			    String hl = world + ":" + p.getInt("player.homeX") + ":" + p.getInt("player.homeY") + ":" + p.getInt("player.homeZ");
+			    thisPlayer.setHL(hl);
+			} catch (Exception e) {
+			    sender.sendMessage("Problem with " + playerName + " skipping");
+			}
+		    }
+		}
+	    }
+	} else {
+	    // Old version
+	    // Only player folder
+	    // Make an islands folder in aSkyblock
+	    File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
+	    if (!asbIslandDir.exists()) {
+		asbIslandDir.mkdir();
+	    } 
+	    // Go to the islands folder and see how many there are
+	    File oldPlayerDir = new File(plugins.getPath() + File.separator + "uSkyblock" + File.separator + "players");
+	    if (oldPlayerDir.exists())
+	    {
+		// Load players
+		for (File player : oldPlayerDir.listFiles()) {
+		    try
+		    {
+			PlayerInfo playerInfo = (PlayerInfo)SLAPI.load(player.getAbsolutePath());
+			// Transfer the player info
+			Players newPlayer = new Players(this, playerInfo.getPlayerName());
+			if (!playerNames.contains(player.getName().toLowerCase())) {
+			    //getLogger().info("Adding player '" + player.getName() + "'");
+			    playerNames.add(player.getName().toLowerCase());
+			}
+			newPlayer.setHasIsland(playerInfo.getHasIsland());
+			if (playerInfo.getHL() != null) {
+			    //getLogger().info("DEBUG: Location is " + playerInfo.getHL());
+			    newPlayer.setHL(playerInfo.getHL());
+			}
+			newPlayer.setInTeam(playerInfo.getHasParty());
+			if (playerInfo.getIL() != null) {
+			    newPlayer.setIslandLocation(playerInfo.getIL());
+			    if (playerInfo.getHasIsland()) {
+				// Write this island location to the list of islands
+				// Copy the name to the aSkyblock folder
+				// Build the island name
+				String islandName = playerInfo.getIslandLocation().getBlockX() + "," + playerInfo.getIslandLocation().getBlockZ();
+				File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
+				newIsland.createNewFile();
 			    }
 			}
-		    } catch (FileNotFoundException e) {
-			sender.sendMessage(islandName + " suddenly disappeared! Skipping...");
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		    } catch (IOException e) {
-			sender.sendMessage(islandName + " problem! Skipping...");
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		    } catch (InvalidConfigurationException e) {
-			sender.sendMessage(islandName + " YAML is corrupted! Skipping...");
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		    } catch (Exception e) {
-			sender.sendMessage(islandName + " problem! Skipping...");
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if (playerInfo.getPIL() != null)
+			    newPlayer.setTeamIslandLocation(playerInfo.getPIL());
+			newPlayer.setIslandLevel(playerInfo.getIslandLevel());
+			if (playerInfo.getMembers() != null) {
+			    newPlayer.setMemberNames(playerInfo.getMembers());
+			    // Add members to the list (may not be required)
+			}
+			if (playerInfo.getPartyLeader() != null)
+			    newPlayer.setTeamLeaderName(playerInfo.getPartyLeader());
+			players.put(player.getName().toLowerCase(), newPlayer);
+			//getLogger().info("Added player " + player.getName());
 		    }
-
-		}
-	    }
-	}
-	sender.sendMessage(ChatColor.GREEN + "Loaded islands. Now loading home locations of players...");
-	// We now have a full list of all player's names and have build player objects and teams. 
-	// Next we need to grab all the home locations
-	// Go to the islands folder and see how many there are
-	File playerDir = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "players");
-	if (!playerDir.exists()) {
-	    sender.sendMessage(ChatColor.RED + "There is no players folder in uSkyBlock!");
-	    return true;
-	}
-	int totalPlayers = playerDir.listFiles().length-1;
-	sender.sendMessage(ChatColor.DARK_BLUE + "There are " + totalPlayers + " player files to convert");
-	int playerCount = 1;
-	for (File playerFile : playerDir.listFiles()) {
-	    // Only grab yml files
-	    String playerFileName = playerFile.getName();
-	    if (playerFileName.endsWith(".yml")) {
-		String playerName = playerFileName.substring(0, playerFileName.length()-4);
-		sender.sendMessage("Loading home for " + playerName + ", player " + (playerCount++) + " of " + totalPlayers);
-		if (playerNames.contains(playerName)) {
-		    Players thisPlayer = players.get(playerName);
-		    YamlConfiguration p = new YamlConfiguration();
-		    try {
-			p.load(playerFile);
-			String hl = world + ":" + p.getInt("player.homeX") + ":" + p.getInt("player.homeY") + ":" + p.getInt("player.homeZ");
-			thisPlayer.setHL(hl);
-		    } catch (Exception e) {
-			sender.sendMessage("Problem with " + playerName + " skipping");
+		    catch (StreamCorruptedException e)
+		    {
+			getLogger().warning("Skipping file " + player.getName());
+		    }
+		    catch (Exception e) {
+			e.printStackTrace();
 		    }
 		}
 	    }
 	}
+	
+	
 	// Now get the UUID's
 	sender.sendMessage(ChatColor.GREEN + "Now contacting Mojang to obtain UUID's for players. This could take a while, see console and please wait...");
 	// Check for any blank or null names
@@ -282,7 +362,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    sender.sendMessage(ChatColor.RED + "null player name found - deleting");
 	    playerNames.remove(null);
 	}
-	final UUIDFetcher fetcher = new UUIDFetcher(playerNames,true);
+	final UUIDFetcher fetcher = new UUIDFetcher(this, playerNames,true);
 	UUIDflag = false;
 	// Kick off an async task and grab the UUIDs.
 	getServer().getScheduler().runTaskAsynchronously(this, new Runnable(){
@@ -321,7 +401,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	// Now complete the player objects
 	for (String name : response.keySet()) {
 	    getLogger().info("Set UUID for " + name);
-		players.get(name).setUUID(response.get(name));
+	    players.get(name).setUUID(response.get(name));
 	}
 	File playerDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "players");
 	if (!playerDir.exists()) {

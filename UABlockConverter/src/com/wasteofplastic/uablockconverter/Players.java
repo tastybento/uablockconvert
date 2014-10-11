@@ -434,4 +434,10 @@ public class Players {
 	return uuid;	
     }
 
+
+    public void setIL(String il) {
+	this.islandLocation = il;
+	
+    }
+
 }
