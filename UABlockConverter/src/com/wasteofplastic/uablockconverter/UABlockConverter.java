@@ -173,7 +173,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    // Go to the islands folder and see how many there are
 	    File islandDir = new File(plugins.getPath() + File.separator + "uSkyBlock" + File.separator + "islands");
 	    if (!islandDir.exists()) {
-		sender.sendMessage(ChatColor.RED + "There is no islands folder in uSkyBlock!");
+		sender.sendMessage(ChatColor.RED + "There are no islands folder in uSkyBlock!");
 		return true;
 	    }
 	    // Make an islands folder in aSkyblock too
@@ -198,6 +198,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			YamlConfiguration config = new YamlConfiguration();
 			try {
 			    // Save file
+			    sender.sendMessage("Saving " + newIsland.getName());
 			    newIsland.createNewFile();
 			    config.load(island);
 			    // Get island info
