@@ -27,9 +27,9 @@ import com.evilmidget38.UUIDFetcher;
 
 public class UABlockConverter extends JavaPlugin implements Listener {
     File plugins;
-    File aSkyBlockConfig;
+    File ASkyBlockConfig;
     File uSkyBlockConfig;
-    FileConfiguration aSkyBlockConf;
+    FileConfiguration ASkyBlockConf;
     FileConfiguration uSkyBlockConf;
     List<String> playerNames = new ArrayList<String>();
     CaseInsensitiveMap players = new CaseInsensitiveMap();
@@ -42,7 +42,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-	// Check to see if USkyBlock is active or ASkyblock
+	// Check to see if USkyBlock is active or ASkyBlock
 	if (getServer().getPluginManager().isPluginEnabled("uSkyBlock")) {
 	    getLogger().severe("uSkyBlock is active - please remove uskyblock.jar from plugins before running this converter.");
 	    getServer().getPluginManager().disablePlugin(this);
@@ -69,8 +69,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		oldVersion = false;
 	    }
 	}
-	aSkyBlockConfig = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "config.yml");
-	if (!aSkyBlockConfig.exists()) {
+	ASkyBlockConfig = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "config.yml");
+	if (!ASkyBlockConfig.exists()) {
 	    getLogger().severe("There appears to be no ASkyBlock folder or config in the plugins folder!");
 	    getServer().getPluginManager().disablePlugin(this);
 	} else {
@@ -86,7 +86,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	// Just do it
 	sender.sendMessage(ChatColor.GREEN + "Starting conversion...");
 	// Set up configs first
-	aSkyBlockConf = YamlConfiguration.loadConfiguration(aSkyBlockConfig);
+	ASkyBlockConf = YamlConfiguration.loadConfiguration(ASkyBlockConfig);
 	uSkyBlockConf = YamlConfiguration.loadConfiguration(uSkyBlockConfig);
 	/*  USkyblock config (NEW):
 	 * options:
@@ -140,28 +140,28 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		}
 	    }
 	    getLogger().info("ASkyBlock: Chest items = " + aChestItems);
-	    aSkyBlockConf.set("island.chestItems", aChestItems);
+	    ASkyBlockConf.set("island.chestItems", aChestItems);
 	}
 	// World name
 	String world = uSkyBlockConf.getString("options.general.worldName","skyworld");
-	aSkyBlockConf.set("general.worldName", world );
+	ASkyBlockConf.set("general.worldName", world );
 	// reset wait
-	aSkyBlockConf.set("general.resetwait", uSkyBlockConf.getInt("options.general.cooldownRestart",600));
+	ASkyBlockConf.set("general.resetwait", uSkyBlockConf.getInt("options.general.cooldownRestart",600));
 	// distance
-	aSkyBlockConf.set("island.distance", uSkyBlockConf.getInt("options.island.distance",110));
-	aSkyBlockConf.set("island.protectionRange", uSkyBlockConf.getInt("options.island.protectionRange",105));
+	ASkyBlockConf.set("island.distance", uSkyBlockConf.getInt("options.island.distance",110));
+	ASkyBlockConf.set("island.protectionRange", uSkyBlockConf.getInt("options.island.protectionRange",105));
 	// Height
 	int height = uSkyBlockConf.getInt("options.island.height",150);
-	aSkyBlockConf.set("general.islandlevel", height);
+	ASkyBlockConf.set("general.islandlevel", height);
 	// PVP
-	aSkyBlockConf.set("island.allowPVP", uSkyBlockConf.getString("options.island.allowPVP","deny"));
+	ASkyBlockConf.set("island.allowPVP", uSkyBlockConf.getString("options.island.allowPVP","deny"));
 	// Teleport mob removal
-	aSkyBlockConf.set("general.islandremovemobs", uSkyBlockConf.getBoolean("options.island.removeCreaturesByTeleport",false));
-	aSkyBlockConf.set("general.loginremovemobs", uSkyBlockConf.getBoolean("options.island.removeCreaturesByTeleport",false));
+	ASkyBlockConf.set("general.islandremovemobs", uSkyBlockConf.getBoolean("options.island.removeCreaturesByTeleport",false));
+	ASkyBlockConf.set("general.loginremovemobs", uSkyBlockConf.getBoolean("options.island.removeCreaturesByTeleport",false));
 	// Max team size
-	aSkyBlockConf.set("island.maxteamsize", uSkyBlockConf.getInt("options.general.maxPartySize",4));
+	ASkyBlockConf.set("island.maxteamsize", uSkyBlockConf.getInt("options.general.maxPartySize",4));
 	try {
-	    aSkyBlockConf.save(aSkyBlockConfig);
+	    ASkyBlockConf.save(ASkyBlockConfig);
 	} catch (IOException e1) {
 	    // TODO Auto-generated catch block
 	    e1.printStackTrace();
@@ -176,8 +176,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		sender.sendMessage(ChatColor.RED + "There are no islands folder in uSkyBlock!");
 		return true;
 	    }
-	    // Make an islands folder in aSkyblock too
-	    File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
+	    // Make an islands folder in ASkyBlock too
+	    File asbIslandDir = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "islands");
 	    if (!asbIslandDir.exists()) {
 		asbIslandDir.mkdir();
 	    }
@@ -192,8 +192,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		    String islandName = island.getName().substring(0, island.getName().length() -4);
 		    if (!islandName.isEmpty()) {
 			sender.sendMessage("Loading island #" + (count++) + " of " + total + " at location " + islandName);
-			// Copy the name to the aSkyblock folder
-			File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
+			// Copy the name to the ASkyBlock folder
+			File newIsland = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
 			// Find out who the owners are of this island
 			YamlConfiguration config = new YamlConfiguration();
 			try {
@@ -295,8 +295,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	} else {
 	    // Old version
 	    // Only player folder
-	    // Make an islands folder in aSkyblock
-	    File asbIslandDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands");
+	    // Make an islands folder in ASkyBlock
+	    File asbIslandDir = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "islands");
 	    if (!asbIslandDir.exists()) {
 		asbIslandDir.mkdir();
 	    } 
@@ -322,10 +322,10 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			    newPlayer.setIslandLocation(playerInfo.getIL());
 			    if (playerInfo.getHasIsland()) {
 				// Write this island location to the list of islands
-				// Copy the name to the aSkyblock folder
+				// Copy the name to the ASkyBlock folder
 				// Build the island name
 				String islandName = playerInfo.getIslandLocation().getBlockX() + "," + playerInfo.getIslandLocation().getBlockZ();
-				File newIsland = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
+				File newIsland = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "islands" + File.separator + islandName + ".yml");
 				newIsland.createNewFile();
 			    }
 			}
@@ -411,7 +411,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    }
 	    
 	}
-	File playerDir = new File(plugins.getPath() + File.separator + "aSkyBlock" + File.separator + "players");
+	File playerDir = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "players");
 	if (!playerDir.exists()) {
 	    playerDir.mkdir();
 	}
