@@ -198,7 +198,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			YamlConfiguration config = new YamlConfiguration();
 			try {
 			    // Save file
-			    sender.sendMessage("DEBUG: Saving " + newIsland.getAbsolutePath());
+			    //sender.sendMessage("DEBUG: Saving " + newIsland.getAbsolutePath());
 			    newIsland.createNewFile();
 			    config.load(island);
 			    // Get island info
