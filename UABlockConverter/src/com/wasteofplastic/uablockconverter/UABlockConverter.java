@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,8 +39,10 @@ public class UABlockConverter extends JavaPlugin implements Listener {
     BukkitTask check;
     // True if this is <2.0 of uSkyblock
     boolean oldVersion;
+    // Offline conversion
+    boolean offline = false;
 
-    Map<String, UUID> response = null;
+    Map<String, UUID> response = new HashMap<String, UUID>();
 
     @Override
     public void onEnable() {
@@ -84,6 +87,18 @@ public class UABlockConverter extends JavaPlugin implements Listener {
     }
 
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args){
+	// Check if this should be run offline completely or not
+	if (args.length > 0) {
+	    if (args[0].equalsIgnoreCase("offline")) {
+		if (!getServer().getOnlineMode()) {
+		sender.sendMessage(ChatColor.GOLD + "All UUID's for players will be offline UUID's");
+		offline = true;
+		} else {
+		    sender.sendMessage(ChatColor.RED + "Server MUST be in offline mode to use this option! Put server in offline mode then run again.");
+		    return true;
+		}
+	    }
+	}
 	// Just do it
 	sender.sendMessage(ChatColor.GREEN + "Starting conversion...");
 	// Set up configs first
@@ -357,6 +372,11 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    }
 	}
 
+	// Check if this should be run offline completely or not
+	if (offline) {
+	    finish();
+	    return true;
+	}
 
 	// Now get the UUID's
 	sender.sendMessage(ChatColor.GREEN + "Now contacting Mojang to obtain UUID's for players. This could take a while, see console and please wait...");
@@ -390,36 +410,38 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    public void run() {
 		getLogger().info("Checking for name to UUID results");
 		if (!cancelled) {
-		// Check to see if UUID has returned
-		if (UUIDflag) {
-		    getLogger().info("Received " + response.size() + " UUID's");
-		    cancelled = true;
-		    finish();
-		    check.cancel();
-		} else {
-		    getLogger().info("Waiting...");
-		}
+		    // Check to see if UUID has returned
+		    if (UUIDflag) {
+			getLogger().info("Received " + response.size() + " UUID's");
+			cancelled = true;
+			finish();
+			check.cancel();
+		    } else {
+			getLogger().info("Waiting...");
+		    }
 		}
 	    }}, 20L, 60L);
 	return true;
     }
     protected void finish() {
-	// finishes the conversion
-	getLogger().info("Received " + response.size() + " UUID's");
-	// Now complete the player objects
-	for (String name : response.keySet()) {
-	    //getLogger().info("Set UUID for " + name);
-	    UUID uuid = response.get(name);
-	    // DEBUG - step through name character by character
-	    /*
+	if (!offline) {
+	    // finishes the conversion
+	    getLogger().info("Received " + response.size() + " UUID's");
+	    // Now complete the player objects
+	    for (String name : response.keySet()) {
+		//getLogger().info("Set UUID for " + name);
+		UUID uuid = response.get(name);
+		// DEBUG - step through name character by character
+		/*
 	    for (int c = 0; c < name.length(); c ++) {
 		getLogger().info("Char " + name.charAt(c) + " value " + (int)name.charAt(c));
 	    }*/
-	    
-	    if (players.get(name.trim()) != null) {
-		players.get(name.trim()).setUUID(uuid);
+
+		if (players.get(name.trim()) != null) {
+		    players.get(name.trim()).setUUID(uuid);
+		}
+
 	    }
-	    
 	}
 	File playerDir = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "players");
 	if (!playerDir.exists()) {
@@ -432,11 +454,11 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		players.get(name).save(playerDir);
 	    } else {
 		// Try and obtain local UUID if offline mode is true
-		if (!getServer().getOnlineMode()) {
+		if (!getServer().getOnlineMode() || offline) {
 		    @SuppressWarnings("deprecation")
 		    UUID offlineUUID = getServer().getOfflinePlayer(name).getUniqueId();
 		    if (offlineUUID != null) {
-			getLogger().warning("Set *offline* UUID for " + name);
+			getLogger().warning("Setting *offline* UUID for " + name);
 			players.get(name).setUUID(offlineUUID);
 			players.get(name).save(playerDir);
 		    }
