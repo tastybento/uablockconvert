@@ -34,6 +34,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
     List<String> playerNames = new ArrayList<String>();
     CaseInsensitiveMap players = new CaseInsensitiveMap();
     boolean UUIDflag;
+    boolean cancelled;
     BukkitTask check;
     // True if this is <2.0 of uSkyblock
     boolean oldVersion;
@@ -271,15 +272,16 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		return true;
 	    }
 	    int totalPlayers = playerDir.listFiles().length-1;
-	    sender.sendMessage(ChatColor.DARK_BLUE + "There are " + totalPlayers + " player files to convert");
-	    int playerCount = 1;
+	    sender.sendMessage(ChatColor.DARK_BLUE + "There are " + totalPlayers + " files in the players folder");
+	    int playerCount = 0;
 	    for (File playerFile : playerDir.listFiles()) {
 		// Only grab yml files
 		String playerFileName = playerFile.getName();
 		if (playerFileName.endsWith(".yml")) {
 		    String playerName = playerFileName.substring(0, playerFileName.length()-4);
-		    sender.sendMessage("Loading home for " + playerName + ", player " + (playerCount++) + " of " + totalPlayers);
+		    //sender.sendMessage("Loading home for " + playerName + ", player " + (playerCount++) + " of " + totalPlayers);
 		    if (playerNames.contains(playerName)) {
+			playerCount++;
 			Players thisPlayer = players.get(playerName);
 			YamlConfiguration p = new YamlConfiguration();
 			try {
@@ -292,6 +294,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		    }
 		}
 	    }
+	    sender.sendMessage(ChatColor.DARK_BLUE + "Found " + playerCount + " players with islands.");
 	} else {
 	    // Old version
 	    // Only player folder
@@ -346,6 +349,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			getLogger().warning("Skipping file " + player.getName());
 		    }
 		    catch (Exception e) {
+			getLogger().warning("Skipping file " + player.getName());
+			//e.getMessage();
 			e.printStackTrace();
 		    }
 		}
@@ -355,6 +360,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 
 	// Now get the UUID's
 	sender.sendMessage(ChatColor.GREEN + "Now contacting Mojang to obtain UUID's for players. This could take a while, see console and please wait...");
+	sender.sendMessage(ChatColor.GREEN + "Requesting " + playerNames.size() + " player names.");
+	sender.sendMessage(ChatColor.GREEN + "There are " + players.size() + " known players.");
 	// Check for any blank or null names
 	if (playerNames.contains(null)) {
 	    sender.sendMessage(ChatColor.RED + "null player name found - deleting");
@@ -376,29 +383,32 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		}
 		UUIDflag = true;
 	    }});
-
+	cancelled = false;
 	// Kick of a scheduler to check if the UUID results are in yet
 	check = getServer().getScheduler().runTaskTimer(this, new Runnable(){
 	    @Override
 	    public void run() {
 		getLogger().info("Checking for name to UUID results");
+		if (!cancelled) {
 		// Check to see if UUID has returned
 		if (UUIDflag) {
-		    getLogger().info("Received!");
+		    getLogger().info("Received " + response.size() + " UUID's");
+		    cancelled = true;
 		    finish();
+		    check.cancel();
 		} else {
 		    getLogger().info("Waiting...");
 		}
-	    }}, 20L, 20L);
+		}
+	    }}, 20L, 60L);
 	return true;
     }
     protected void finish() {
-	check.cancel();
 	// finishes the conversion
 	getLogger().info("Received " + response.size() + " UUID's");
 	// Now complete the player objects
 	for (String name : response.keySet()) {
-	    getLogger().info("Set UUID for " + name);
+	    //getLogger().info("Set UUID for " + name);
 	    UUID uuid = response.get(name);
 	    // DEBUG - step through name character by character
 	    /*
