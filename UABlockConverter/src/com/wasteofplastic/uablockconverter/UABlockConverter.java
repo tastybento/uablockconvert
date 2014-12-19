@@ -91,8 +91,8 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	if (args.length > 0) {
 	    if (args[0].equalsIgnoreCase("offline")) {
 		if (!getServer().getOnlineMode()) {
-		sender.sendMessage(ChatColor.GOLD + "All UUID's for players will be offline UUID's");
-		offline = true;
+		    sender.sendMessage(ChatColor.GOLD + "All UUID's for players will be offline UUID's");
+		    offline = true;
 		} else {
 		    sender.sendMessage(ChatColor.RED + "Server MUST be in offline mode to use this option! Put server in offline mode then run again.");
 		    return true;
@@ -442,6 +442,17 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 		}
 
 	    }
+	} else {
+	    // Create an offline response
+	    for (String name : players.keySet()) {
+		UUID offlineUUID = getServer().getOfflinePlayer(name).getUniqueId();
+		if (offlineUUID != null) {
+		    getLogger().warning("Setting *offline* UUID for " + name);
+		    response.put(name,offlineUUID);
+		    players.get(name).setUUID(offlineUUID);
+		}
+	    }
+
 	}
 	File playerDir = new File(plugins.getPath() + File.separator + "ASkyBlock" + File.separator + "players");
 	if (!playerDir.exists()) {
@@ -453,6 +464,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    if (players.get(name).getUUID() != null) {
 		players.get(name).save(playerDir);
 	    } else {
+		/*
 		// Try and obtain local UUID if offline mode is true
 		if (!getServer().getOnlineMode() || offline) {
 		    @SuppressWarnings("deprecation")
@@ -463,9 +475,10 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			players.get(name).save(playerDir);
 		    }
 		} else {
+		*/
 		    getLogger().warning(name + " has no UUID. Cannot save this player!");
 		    noUUIDs.add(name);
-		}
+		//}
 	    }  
 	}
 	if (!noUUIDs.isEmpty()) {
