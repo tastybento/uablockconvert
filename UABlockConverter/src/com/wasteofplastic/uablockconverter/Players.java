@@ -41,7 +41,7 @@ public class Players {
      */
     public Players(final UABlockConverter UABlockConverter, String playerName) {
 	this.plugin = UABlockConverter;
-	plugin.getLogger().info("Created player object for " + playerName);
+	//plugin.getLogger().info("Created player object for " + playerName);
 	this.uuid = null;
 	this.members = new ArrayList<UUID>();
 	this.memberNames = new ArrayList<String>();
@@ -265,6 +265,9 @@ public class Players {
 	members.remove(member);
     }
 
+    public void removeMember(final String member) {
+	memberNames.remove(member);
+    }
 
     /**
      * Resets a specific challenge. Will not reset a challenge that does not
@@ -376,6 +379,7 @@ public class Players {
 	}
     }
 
+    
 
     /**
      * @return the memberNames

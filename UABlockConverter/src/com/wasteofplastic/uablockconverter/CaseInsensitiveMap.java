@@ -17,16 +17,19 @@ public class CaseInsensitiveMap extends HashMap<String, Players> {
 
     // not @Override because that would require the key parameter to be of type Object
     public Players get(String key) {
+	// If the key supplied is actually correct in terms of case - this will be provided
 	if (super.containsKey(key)) {
 	    return super.get(key);
 	}
+	// If the case-sensitive one is not known, the all lower-case one will be provided
 	return super.get(key.toLowerCase());
     }
-    
+    /*
     public boolean containsKey(String key) {
 	if (super.containsKey(key) || super.containsKey(key.toLowerCase())) {
 	    return true;
 	}
 	return false;
     }
+    */
 }

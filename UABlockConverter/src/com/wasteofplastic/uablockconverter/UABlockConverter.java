@@ -32,7 +32,9 @@ public class UABlockConverter extends JavaPlugin implements Listener {
     File uSkyBlockConfig;
     FileConfiguration ASkyBlockConf;
     FileConfiguration uSkyBlockConf;
+    // List of names that will be sent to Mojang to be converted to UUIDs
     List<String> playerNames = new ArrayList<String>();
+    // Internal list of player objects with name as a key. Can be accessed case-insensitively.
     CaseInsensitiveMap players = new CaseInsensitiveMap();
     boolean UUIDflag;
     boolean cancelled;
@@ -224,36 +226,193 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			    // Get island level
 			    int level = config.getInt("general.level",0);
 			    // Get the island leader
-			    String leaderName = config.getString("party.leader","");
-			    if (!leaderName.isEmpty()) {
-				getLogger().info("Leader is :"+leaderName);
+			    String islandOwnerName = config.getString("party.leader","");
+			    if (!islandOwnerName.isEmpty()) {
+				getLogger().info("Leader is :"+islandOwnerName);
 				// Create this player
-				Players leader = new Players(this,leaderName);
+				Players leader = new Players(this,islandOwnerName);
 				leader.setHasIsland(true);
 				leader.setIslandLocation(islandLocation);
 
 				// Problem - will be recalculated
 				leader.setIslandLevel(level);
-				playerNames.add(leaderName);
-				players.put(leaderName,leader);
-				ConfigurationSection party = config.getConfigurationSection("party.members");
-				// Step through the names on this island
-				for (String name : party.getKeys(false)) {
-				    //getLogger().info("DEBUG: name in file = " + name);
-				    if (!name.equals(leaderName) && !name.isEmpty()) {
-					// Team member
-					Players teamMember = new Players(this,name);
-					leader.addTeamMember(name);
-					leader.addTeamMember(leaderName);
-					leader.setTeamLeaderName(leaderName);
-					leader.setTeamIslandLocation(islandLocation);
-					leader.setInTeam(true);
-					teamMember.setTeamLeaderName(leaderName);
-					teamMember.setTeamIslandLocation(islandLocation);
-					teamMember.setInTeam(true);
-					players.put(name,teamMember);
-					playerNames.add(name);
-				    } 
+				
+				/*
+				 * Scenarios:
+				 * Players cannot be on more than one team. If when adding team members they are found to be already
+				 * known, they are not added to the team. If later they are found to have their own island, or be a leader
+				 * of a team, then they are removed from that team and made the leader. If they are found to have more
+				 * than one leadership position, the first one found counts.
+				 * 
+				 * 1. Player is "leader" of an island and nothing else - this means he is the owner of an island
+				 * 1.1 Player is a leader and has party members
+				 * 2. Player is leader of more than one island
+				 * 2.1 All of those islands have no party members
+				 * 2.2 Some of those islands have party members
+				 * 3. Player is a leader of one island, but also is a member of a team
+				 * 3.1 Player is a leader and also a member of more than one team
+				 * 3.2 Player is a leader of one island team and leader of another island team
+				 * 4. Player is not a leader of any island, but is a member of a team
+				 * 4.1 The player is a member of more than one team
+				 * 
+				 * 
+				 */
+				
+				if (players.containsKey(islandOwnerName)) {
+				    getLogger().severe(islandOwnerName + " already known.");
+				    // The player is already known. That means they are duplicated somewhere
+				    // Find out if they are a team leader, or a team member
+				    Players leaderCheck = players.get(islandOwnerName);
+				    // if it's the same island, ignore
+				    if (!leader.getIslandLocation().equals(leaderCheck.getIslandLocation())){
+					// Check to see if this player is in a team. If they are not, then they are just a leader of their own island
+					if (leaderCheck.inTeam()) {
+					    // They are in a team.
+					    // Find out who the team leader is
+					    if (leaderCheck.getTeamLeaderName().equalsIgnoreCase(islandOwnerName)) {
+						// Scenario #3.2
+						getLogger().severe(islandOwnerName + " is already a leader of an island team!");
+						getLogger().severe("Island is at " + leaderCheck.getIslandLocation());
+						getLogger().severe("Team members are: ");
+						for (String member : leaderCheck.getMemberNames()) {
+						    getLogger().severe("   " + member);
+						}
+						getLogger().severe("So skipping this entry. Island at " + leader.getIslandLocation() + " will be unowned.");
+					    } else {
+						// This player is in a team, but not the leader
+						// Scenario #3
+						String oldLeaderName = leaderCheck.getTeamLeaderName();
+						ConfigurationSection party = config.getConfigurationSection("party.members");
+						if (party.getKeys(false).size() == 1) {
+						    getLogger().severe(islandOwnerName + " is in a party of just themselves. Ignoring.");
+						} else {
+						    getLogger().severe(islandOwnerName + " already in a team lead by " + oldLeaderName + ", but also leads a team. Leadership take precidence - removing from previous team...");
+						    getLogger().severe("There are " + party.getKeys(false).size() + " members in the new party");
+						    // The island leadership role takes priority
+						    players.put(islandOwnerName,leaderCheck);
+
+						    // Step through the names on this island
+						    for (String name : party.getKeys(false)) {
+							getLogger().info(name);
+							if (!name.equals(islandOwnerName) && !name.isEmpty()) {
+							    // Check to see if this player is already on a team
+							    if (players.containsKey(name)) {
+								getLogger().info(name + " is already on a team or a team leader so cannot be on this team");
+							    } else {
+								getLogger().info("Adding " + name + " to new team.");
+								// Team member
+								Players teamMember = new Players(this,name);
+								leaderCheck.addTeamMember(name);
+								leaderCheck.addTeamMember(islandOwnerName);
+								leaderCheck.setTeamLeaderName(islandOwnerName);
+								leaderCheck.setTeamIslandLocation(islandLocation);
+								leaderCheck.setInTeam(true);
+								teamMember.setTeamLeaderName(islandOwnerName);
+								teamMember.setTeamIslandLocation(islandLocation);
+								teamMember.setInTeam(true);
+								players.put(name,teamMember);
+								playerNames.add(name);
+							    }
+							} 
+						    }
+
+
+						    // Clean up the previous team
+						    Players oldLeader = players.get(oldLeaderName);
+						    getLogger().severe("The old team members are:");
+						    for (String member : oldLeader.getMemberNames()) {
+							if (member.equalsIgnoreCase(oldLeaderName)) {
+							    member = member + " (Leader)";
+							}
+							getLogger().severe("   " + member);
+						    }
+						    oldLeader.removeMember(islandOwnerName);
+						    getLogger().severe("Reduced team size is now " + oldLeader.getMemberNames().size());
+						    if (oldLeader.getMemberNames().size() == 1) {
+							getLogger().severe("Team is now only 1 so removing team from " + oldLeaderName);
+							// Need to clear the team now
+							oldLeader.setInTeam(false);
+							oldLeader.setMemberNames(new ArrayList<String>());
+							oldLeader.setTeamIslandLocation("");
+							leaderCheck.setTeamLeaderName("");
+						    }
+						}
+
+					    }
+					} else {
+					    // Scenario #2
+					    // They have their own island already, but with no team. Team will take precedence
+					    getLogger().severe(islandOwnerName + " had an island of their own already so cannot be leader of another island!");
+					    /*
+					    getLogger().severe(leaderName + " had an island of their own and also are leader of an island! Single island ownership will be removed.");
+					    getLogger().severe("The island at " + leaderCheck.getIslandLocation() + " will be unowned");
+					    leaderCheck.setIslandLocation(islandLocation);
+					    // The island leadership role takes priority
+					    players.put(leaderName,leaderCheck);
+					    ConfigurationSection party = config.getConfigurationSection("party.members");
+					    // Step through the names on this island
+					    for (String name : party.getKeys(false)) {
+						//getLogger().info("DEBUG: name in file = " + name);
+						if (!name.equals(leaderName) && !name.isEmpty()) {
+						    // Check to see if this player is already on a team
+						    if (players.containsKey(name)) {
+							getLogger().info(name + " is already on a team or a team leader so cannot be on this team");
+						    } else {
+							getLogger().info("Adding " + name + " to new team.");
+							// Team member
+							Players teamMember = new Players(this,name);
+							leaderCheck.addTeamMember(name);
+							leaderCheck.addTeamMember(leaderName);
+							leaderCheck.setTeamLeaderName(leaderName);
+							leaderCheck.setTeamIslandLocation(islandLocation);
+							leaderCheck.setInTeam(true);
+							teamMember.setTeamLeaderName(leaderName);
+							teamMember.setTeamIslandLocation(islandLocation);
+							teamMember.setInTeam(true);
+							players.put(name,teamMember);
+							playerNames.add(name);
+						    }
+						} 
+					    }
+					    */
+					}
+				    } else {
+					getLogger().info(islandOwnerName + " duplicate found");
+				    }
+				} else {
+				    // Scenario #1
+				    playerNames.add(islandOwnerName);
+				    players.put(islandOwnerName,leader);
+				    
+				    // Check to see if there are any party members
+				    // Scenario #1.1
+				    ConfigurationSection party = config.getConfigurationSection("party.members");
+				    // Step through the names on this island
+				    for (String name : party.getKeys(false)) {
+					//getLogger().info("DEBUG: name in file = " + name);
+					if (!name.equals(islandOwnerName) && !name.isEmpty()) {
+					    // Check to see if this player is already on a team
+					    if (players.containsKey(name)) {
+						// Duplicate found. Cannot add to team no matter what.
+						getLogger().info(name + " is already on a team or a team leader so cannot be on this team");
+						// Result is that player ends up on the first team they are assigned to.
+					    } else {
+						getLogger().info("Adding team member " + name);
+						// Team member
+						Players teamMember = new Players(this,name);
+						leader.addTeamMember(name);
+						leader.addTeamMember(islandOwnerName);
+						leader.setTeamLeaderName(islandOwnerName);
+						leader.setTeamIslandLocation(islandLocation);
+						leader.setInTeam(true);
+						teamMember.setTeamLeaderName(islandOwnerName);
+						teamMember.setTeamIslandLocation(islandLocation);
+						teamMember.setInTeam(true);
+						players.put(name,teamMember);
+						playerNames.add(name);
+					    }
+					} 
+				    }
 				}
 			    }
 			} catch (FileNotFoundException e) {
@@ -447,7 +606,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	    for (String name : players.keySet()) {
 		UUID offlineUUID = getServer().getOfflinePlayer(name).getUniqueId();
 		if (offlineUUID != null) {
-		    getLogger().warning("Setting *offline* UUID for " + name);
+		    //getLogger().warning("Setting *offline* UUID for " + name);
 		    response.put(name,offlineUUID);
 		    players.get(name).setUUID(offlineUUID);
 		}
@@ -475,9 +634,9 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 			players.get(name).save(playerDir);
 		    }
 		} else {
-		*/
-		    getLogger().warning(name + " has no UUID. Cannot save this player!");
-		    noUUIDs.add(name);
+		 */
+		getLogger().warning(name + " has no UUID. Cannot save this player!");
+		noUUIDs.add(name);
 		//}
 	    }  
 	}
