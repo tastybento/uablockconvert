@@ -334,6 +334,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 							oldLeader.setInTeam(false);
 							oldLeader.setMemberNames(new ArrayList<String>());
 							oldLeader.setTeamIslandLocation("");
+							oldLeader.setTeamLeaderName("");
 							leaderCheck.setTeamLeaderName("");
 						    }
 						}

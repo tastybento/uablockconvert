@@ -1,6 +1,6 @@
 name: UABlockConverter
 main: com.wasteofplastic.uablockconverter.UABlockConverter
-version: 1.0
+version: 1.1
 description: Converts USkyblock files to A Skyblock files
 author: Tastybento
 softdepend: [ASkyBlock, uSkyBlock]
