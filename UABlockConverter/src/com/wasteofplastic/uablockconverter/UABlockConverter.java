@@ -166,6 +166,7 @@ public class UABlockConverter extends JavaPlugin implements Listener {
 	// distance
 	ASkyBlockConf.set("island.distance", uSkyBlockConf.getInt("options.island.distance",110));
 	ASkyBlockConf.set("island.protectionRange", uSkyBlockConf.getInt("options.island.protectionRange",105));
+	ASkyBlockConf.set("island.overridelimit", true); //Set to true as otherwise values that would be valid in uSkyBlock become invalid.
 	// Height
 	int height = uSkyBlockConf.getInt("options.island.height",150);
 	ASkyBlockConf.set("general.islandlevel", height);
